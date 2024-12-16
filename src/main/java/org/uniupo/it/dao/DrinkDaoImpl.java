@@ -32,12 +32,7 @@ public class DrinkDaoImpl implements DrinkDao {
     }
 
     private DrinkAvailabilityResult checkBaseConsumables(Connection conn) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement(
-                """
-                SELECT name, quantity 
-                FROM machine.consumable 
-                WHERE name IN ('CUP', 'SPOON')
-                """)) {
+        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Recipe.CHECK_BASE_CONSUMABLES)) {
 
             ResultSet rs = stmt.executeQuery();
             Map<ConsumableType, Integer> baseConsumables = new HashMap<>();
@@ -67,8 +62,7 @@ public class DrinkDaoImpl implements DrinkDao {
             return new DrinkAvailabilityResult(true);
         }
 
-        try (PreparedStatement stmt = conn.prepareStatement(
-                "SELECT quantity FROM machine.consumable WHERE name = 'SUGAR'")) {
+        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.CHECK_SUGAR)) {
 
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -84,13 +78,7 @@ public class DrinkDaoImpl implements DrinkDao {
     }
 
     private DrinkAvailabilityResult checkRecipeConsumables(Connection conn, String drinkCode) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement(
-                """
-                SELECT r."consumableName", r."consumableQuantity", c.quantity 
-                FROM machine."Recipe" r 
-                JOIN machine.consumable c ON r."consumableName" = c.name 
-                WHERE r."drinkCode" = ?
-                """)) {
+        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Recipe.SELECT_CONSUMABLES)) {
 
             stmt.setString(1, drinkCode);
             ResultSet rs = stmt.executeQuery();
