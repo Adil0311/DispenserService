@@ -86,9 +86,9 @@ public class DrinkDaoImpl implements DrinkDao {
     private DrinkAvailabilityResult checkRecipeConsumables(Connection conn, String drinkCode) throws SQLException {
         try (PreparedStatement stmt = conn.prepareStatement(
                 """
-                SELECT r.consumableName, r.consumableQuantity, c.quantity 
+                SELECT r."consumableName", r."consumableQuantity", c.quantity 
                 FROM machine."Recipe" r 
-                JOIN machine.consumable c ON r.consumableName = c.name 
+                JOIN machine.consumable c ON r."consumableName" = c.name 
                 WHERE r."drinkCode" = ?
                 """)) {
 
