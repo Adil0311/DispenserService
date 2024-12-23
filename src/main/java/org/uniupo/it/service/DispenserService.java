@@ -25,6 +25,7 @@ public class DispenserService {
     }
 
     private void consumableAvailabilityHandler(String topic, MqttMessage mqttMessage) {
+        System.out.println("Consumable availability handler");
         String jsonMessage = new String(mqttMessage.getPayload());
         Selection s = gson.fromJson(jsonMessage, Selection.class);
         DrinkDaoImpl drinkDao = new DrinkDaoImpl();
