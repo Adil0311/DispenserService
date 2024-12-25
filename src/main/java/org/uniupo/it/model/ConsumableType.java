@@ -9,14 +9,6 @@ public enum ConsumableType {
     TEA,        // Tè
     COFFEE;     // Caffè
 
-    public static ConsumableType fromDatabaseValue(String dbValue) {
-        try {
-            return ConsumableType.valueOf(dbValue.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid consumable type: " + dbValue, e);
-        }
-    }
-
     public String toDatabaseValue() {
         return this.name();
     }

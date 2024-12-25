@@ -3,10 +3,7 @@ package org.uniupo.it.dao;
 import org.uniupo.it.model.ConsumableType;
 import org.uniupo.it.model.DrinkAvailabilityResult;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,6 +25,70 @@ public class DrinkDaoImpl implements DrinkDao {
 
         } catch (SQLException e) {
             throw new RuntimeException("Error checking drink availability", e);
+        }
+    }
+
+    @Override
+    public void dispenseDrink(String drinkCode, int sugarQuantity) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection()) {
+            System.out.println("Dispensing drink");
+            updateBaseConsumables(conn);
+            System.out.println("Base consumables updated");
+            if (sugarQuantity > 0) {
+                updateSugar(conn, sugarQuantity);
+            }
+            System.out.println("Sugar updated");
+            updateRecipeConsumables(conn, drinkCode);
+            System.out.println("Recipe consumables updated");
+        } catch (SQLException e) {
+            throw new RuntimeException("Error dispensing drink", e);
+        }
+
+    }
+
+    private void updateRecipeConsumables(Connection conn, String drinkCode) throws SQLException {
+        System.out.println("Updating recipe consumables");
+        try (PreparedStatement getRecipe = conn.prepareStatement(SQLQueries.Recipe.GET_RECIPE_CONSUMABLES);
+             PreparedStatement updateConsumable = conn.prepareStatement(SQLQueries.Consumable.UPDATE_CONSUMABLE)) {
+
+            getRecipe.setString(1, drinkCode);
+            ResultSet rs = getRecipe.executeQuery();
+
+            while (rs.next()) {
+                String consumableName = rs.getString("consumableName");
+                int quantity = rs.getInt("consumableQuantity");
+
+                updateConsumable.setInt(1, quantity);
+                updateConsumable.setObject(2, ConsumableType.valueOf(consumableName), Types.OTHER);
+                updateConsumable.executeUpdate();
+            }
+        }
+    }
+
+    private void updateSugar(Connection conn, int sugarQuantity) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.UPDATE_CONSUMABLE)) {
+            stmt.setInt(1, sugarQuantity);
+            stmt.setObject(2, ConsumableType.SUGAR, Types.OTHER);
+            stmt.executeUpdate();
+        }
+    }
+
+    private void updateBaseConsumables(Connection conn) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.UPDATE_CONSUMABLE)) {
+            // Debug logs
+            System.out.println("Starting base consumables update");
+
+            // Aggiorna bicchiere
+            stmt.setInt(1, 1);
+            stmt.setObject(2, ConsumableType.CUP, Types.OTHER); // Usiamo setObject per l'ENUM
+            System.out.println("Executing update for CUP");
+            stmt.executeUpdate();
+
+            // Aggiorna cucchiaio
+            stmt.setInt(1, 1);
+            stmt.setObject(2, ConsumableType.SPOON, Types.OTHER); // Usiamo setObject per l'ENUM
+            System.out.println("Executing update for SPOON");
+            stmt.executeUpdate();
         }
     }
 

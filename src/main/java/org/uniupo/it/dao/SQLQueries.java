@@ -17,6 +17,12 @@ public final class SQLQueries {
                  FROM machine.consumable\s
                  WHERE name IN ('CUP', 'SPOON')
                 \s""";
+
+        public static final String GET_RECIPE_CONSUMABLES = """
+            SELECT "consumableName", "consumableQuantity"
+            FROM machine."Recipe"
+            WHERE "drinkCode" = ?
+        """;
     }
 
     public static final class Consumable {
@@ -25,5 +31,11 @@ public final class SQLQueries {
                  FROM machine.consumable\s
                  WHERE name = 'SUGAR'
                 \s""";
+        public static final String UPDATE_CONSUMABLE = """
+            UPDATE machine.consumable
+            SET quantity = quantity - ?
+            WHERE name = ?
+        """;
     }
+
 }

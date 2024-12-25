@@ -12,22 +12,40 @@ import org.uniupo.it.util.Topics;
 public class DispenserService {
     final private String machineId;
     final private MqttClient mqttClient;
-    final private String baseTopic;
     final private Gson gson;
 
     public DispenserService(String machineId, MqttClient mqttClient) throws MqttException {
         this.machineId = machineId;
         this.mqttClient = mqttClient;
-        this.baseTopic = "macchina/" + machineId + "/dispenser";
         this.gson = new Gson();
-        this.mqttClient.subscribe(baseTopic + "/consumableAvailability", this::consumableAvailabilityHandler);
+        subscribeToTopics();
+
+    }
+
+    private void subscribeToTopics() throws MqttException {
+        mqttClient.subscribe(String.format(Topics.CONSUMABLES_AVAILABILITY_TOPIC, machineId), this::consumableAvailabilityHandler);
+        mqttClient.subscribe(String.format(Topics.DISPENSE_TOPIC, machineId), this::startDispenseHandler);
+    }
+
+    private void startDispenseHandler(String topic, MqttMessage mqttMessage)  {
+        System.out.println("Start dispense handler");
+        Selection s = parseMessage(mqttMessage,Selection.class);
+        DrinkDaoImpl drinkDao = new DrinkDaoImpl();
+        System.out.println(s.toString());
+        drinkDao.dispenseDrink(s.getDrinkCode(), s.getSugarLevel());
+        System.out.println("Drink dispensed");
+        try {
+            mqttClient.publish(String.format(Topics.DISPENSE_COMPLETED_TOPIC, machineId), new MqttMessage("Dispense completed".getBytes()));
+        } catch (MqttException e) {
+            throw new RuntimeException(e);
+        }
+
 
     }
 
     private void consumableAvailabilityHandler(String topic, MqttMessage mqttMessage) {
         System.out.println("Consumable availability handler");
-        String jsonMessage = new String(mqttMessage.getPayload());
-        Selection s = gson.fromJson(jsonMessage, Selection.class);
+        Selection s = parseMessage(mqttMessage,Selection.class);
         DrinkDaoImpl drinkDao = new DrinkDaoImpl();
         DrinkAvailabilityResult drinkAvailabilityResult = drinkDao.checkDrinkAvailability(s.getDrinkCode(), s.getSugarLevel());
         System.out.println(drinkAvailabilityResult);
@@ -38,6 +56,11 @@ public class DispenserService {
         } catch (MqttException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private <T> T parseMessage(MqttMessage message,Class<T> classType){
+        String jsonMessage = new String(message.getPayload());
+        return gson.fromJson(jsonMessage,classType);
     }
 
 
