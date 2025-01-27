@@ -2,10 +2,11 @@ package org.uniupo.it.dao;
 
 import org.uniupo.it.model.ConsumableType;
 import org.uniupo.it.model.DrinkAvailabilityResult;
+import org.uniupo.it.model.Fault;
+import org.uniupo.it.model.FaultType;
 
 import java.sql.*;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class DrinkDaoImpl implements DrinkDao {
     @Override
@@ -157,5 +158,73 @@ public class DrinkDaoImpl implements DrinkDao {
 
             return new DrinkAvailabilityResult(true);
         }
+    }
+
+    @Override
+    public List<Fault> checkConsumablesAfterDispense() {
+        List<Fault> faults = new ArrayList<>();
+
+        try (Connection conn = DatabaseConnection.getInstance().getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.CHECK_CONSUMABLES);
+                 ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    faults.add(new Fault(
+                            rs.getString("name")+ " is empty",
+                            UUID.randomUUID(),
+                            new java.sql.Timestamp(System.currentTimeMillis()),
+                            FaultType.CONSUMABILE_TERMINATO
+                    ));
+                }
+            }
+
+            return faults;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error during machine checkup", e);
+        }
+    }
+
+    @Override
+    public void insertMissingConsumables(List<Fault> faults) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(SQLQueries.Consumable.INSERT_FAULTS)) {
+
+            for (Fault fault : faults) {
+                pstmt.setString(1, fault.getDescription());
+                pstmt.setObject(2, fault.getIdFault());
+                pstmt.setTimestamp(3, fault.getTimestamp());
+                pstmt.setObject(4, fault.getFaultType().toString(), Types.OTHER);
+                pstmt.addBatch();
+            }
+
+            pstmt.executeBatch();
+
+        } catch (SQLException e) {
+            System.out.println("Failed to insert faults"+e.getMessage());
+            throw new RuntimeException("Failed to insert faults", e);
+        }
+    }
+
+    @Override
+    public List<Fault> getUnresolvedConsumables() {
+        List<Fault> faults = new ArrayList<>();
+
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.GET_FAULTS);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                faults.add(new Fault(
+                        rs.getString("description"),
+                        rs.getObject("id_fault", UUID.class),
+                        rs.getTimestamp("timestamp"),
+                        FaultType.valueOf(rs.getString("fault_type")),
+                        rs.getBoolean("risolto")
+                ));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to fetch unresolved faults", e);
+        }
+
+        return faults;
     }
 }

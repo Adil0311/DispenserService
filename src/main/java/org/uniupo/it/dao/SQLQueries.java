@@ -36,6 +36,19 @@ public final class SQLQueries {
             SET quantity = quantity - ?
             WHERE name = ?
         """;
+
+        public static final String CHECK_CONSUMABLES = """
+                SELECT name, quantity, "maxQuantity"
+                FROM machine.consumable
+                WHERE quantity = 0;""";
+
+        public static final String INSERT_FAULTS = """
+                INSERT INTO machine."Fault" (description, id_fault, timestamp, fault_type)\s
+                VALUES (?, ?, ?, ?)""";
+
+        public static final String GET_FAULTS = """
+                SELECT description, id_fault, timestamp, fault_type, risolto
+                FROM machine."Fault" WHERE risolto IS FALSE;""";
     }
 
 }
