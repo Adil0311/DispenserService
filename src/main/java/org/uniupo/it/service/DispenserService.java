@@ -26,13 +26,14 @@ public class DispenserService {
     }
 
     private void subscribeToTopics() throws MqttException {
-        mqttClient.subscribe(String.format(Topics.CONSUMABLES_AVAILABILITY_TOPIC, machineId), this::consumableAvailabilityHandler);
-        mqttClient.subscribe(String.format(Topics.DISPENSE_TOPIC, machineId), this::startDispenseHandler);
+        mqttClient.subscribe(String.format(Topics.CONSUMABLES_AVAILABILITY_TOPIC,instituteId, machineId), this::consumableAvailabilityHandler);
+        mqttClient.subscribe(String.format(Topics.DISPENSE_TOPIC,instituteId, machineId), this::startDispenseHandler);
+        System.out.println("Subscribed to "+String.format(Topics.DISPENSE_TOPIC,instituteId, machineId));
     }
 
     private void startDispenseHandler(String topic, MqttMessage mqttMessage) {
         System.out.println("Start dispense handler");
-        Selection s = parseMessage(mqttMessage, Selection.class);
+        Selection s = gson.fromJson(new String(mqttMessage.getPayload()), Selection.class);
         DrinkDaoImpl drinkDao = new DrinkDaoImpl();
         System.out.println(s.toString());
         drinkDao.dispenseDrink(s.getDrinkCode(), s.getSugarLevel());
@@ -41,7 +42,9 @@ public class DispenserService {
         Selection dispensedSelection = new Selection(s.getDrinkCode(), s.getSugarLevel());
         String dispensedSelectionJson = gson.toJson(dispensedSelection);
         try {
-            mqttClient.publish(String.format(Topics.DISPENSE_COMPLETED_TOPIC, machineId), new MqttMessage(dispensedSelectionJson.getBytes()));
+            System.out.println("Publishing dispense completed");
+            mqttClient.publish(String.format(Topics.DISPENSE_COMPLETED_TOPIC,instituteId, machineId), new MqttMessage(dispensedSelectionJson.getBytes()));
+            System.out.println("Dispense completed");
         } catch (MqttException e) {
             throw new RuntimeException(e);
         }
@@ -75,10 +78,9 @@ public class DispenserService {
 
     private void publishFaults(List<FaultMessage> faults) throws MqttException {
         String jsonMessage = gson.toJson(faults);
-        System.out.println(jsonMessage);
         MqttMessage mqttMessage = new MqttMessage(jsonMessage.getBytes());
         mqttMessage.setQos(1);
-        mqttClient.publish(Topics.ASSISTANCE_CHECK_FAULTS_TOPIC, mqttMessage);
+        mqttClient.publish(Topics.ASSISTANCE_CHECK_CONSUMABLES_TOPIC, mqttMessage);
     }
 
     private List<FaultMessage> getFaultMessages(List<Fault> faults) {
@@ -88,24 +90,19 @@ public class DispenserService {
 
     private void consumableAvailabilityHandler(String topic, MqttMessage mqttMessage) {
         System.out.println("Consumable availability handler");
-        Selection s = parseMessage(mqttMessage, Selection.class);
+        Selection s = gson.fromJson(new String(mqttMessage.getPayload()), Selection.class);
         DrinkDaoImpl drinkDao = new DrinkDaoImpl();
         System.out.println(s.toString());
         DrinkAvailabilityResult drinkAvailabilityResult = drinkDao.checkDrinkAvailability(s.getDrinkCode(), s.getSugarLevel());
-        System.out.println(drinkAvailabilityResult);
+        System.out.println(drinkAvailabilityResult.toString());
         try {
-            String str = String.format(Topics.RESPONSE_CONSUMABLES_AVAILABILITY_TOPIC, machineId);
-            System.out.println(str);
-            mqttClient.publish(str, new MqttMessage(gson.toJson(drinkAvailabilityResult).getBytes()));
+
+            mqttClient.publish(String.format(Topics.RESPONSE_CONSUMABLES_AVAILABILITY_TOPIC,instituteId, machineId), new MqttMessage(gson.toJson(drinkAvailabilityResult).getBytes()));
         } catch (MqttException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private <T> T parseMessage(MqttMessage message, Class<T> classType) {
-        String jsonMessage = new String(message.getPayload());
-        return gson.fromJson(jsonMessage, classType);
-    }
 
 
 }

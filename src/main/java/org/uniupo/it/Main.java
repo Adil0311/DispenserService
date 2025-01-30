@@ -5,7 +5,6 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.uniupo.it.mqttConfig.MqttOptions;
 import org.uniupo.it.service.DispenserService;
 
-import java.util.Properties;
 import java.util.UUID;
 
 public class Main {
@@ -24,12 +23,10 @@ public class Main {
             MqttClient mqttClient = new MqttClient(mqttUrl, UUID.randomUUID() + " " + machineId);
             MqttConnectOptions mqttOptions = new MqttOptions().getOptions();
             mqttClient.connect(mqttOptions);
-            DispenserService dispenserService = new DispenserService(machineId,instituteId, mqttClient);
-            dispenserService.checkConsumablesAfterDispense();
+            new DispenserService(machineId, instituteId, mqttClient);
         } catch (Exception e) {
             e.printStackTrace();
         }
-
 
 
     }
