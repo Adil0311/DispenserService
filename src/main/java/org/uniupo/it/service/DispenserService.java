@@ -28,28 +28,67 @@ public class DispenserService {
     private void subscribeToTopics() throws MqttException {
         mqttClient.subscribe(String.format(Topics.CONSUMABLES_AVAILABILITY_TOPIC,instituteId, machineId), this::consumableAvailabilityHandler);
         mqttClient.subscribe(String.format(Topics.DISPENSE_TOPIC,instituteId, machineId), this::startDispenseHandler);
+        mqttClient.subscribe(String.format((Topics.CONSUMABLES_REQUEST_TOPIC), instituteId, machineId), this::consumableRequestHandler);
         System.out.println("Subscribed to "+String.format(Topics.DISPENSE_TOPIC,instituteId, machineId));
     }
 
-    private void startDispenseHandler(String topic, MqttMessage mqttMessage) {
-        System.out.println("Start dispense handler");
-        Selection s = gson.fromJson(new String(mqttMessage.getPayload()), Selection.class);
+    private void consumableRequestHandler(String s, MqttMessage message) {
+        System.out.println("Consumable request handler");
         DrinkDaoImpl drinkDao = new DrinkDaoImpl();
-        System.out.println(s.toString());
-        drinkDao.dispenseDrink(s.getDrinkCode(), s.getSugarLevel());
-        System.out.println("Drink dispensed");
-        checkConsumablesAfterDispense();
-        Selection dispensedSelection = new Selection(s.getDrinkCode(), s.getSugarLevel());
-        String dispensedSelectionJson = gson.toJson(dispensedSelection);
+        List<Consumable> consumables = drinkDao.getConsumables();
+        System.out.println(consumables.toString());
         try {
-            System.out.println("Publishing dispense completed");
-            mqttClient.publish(String.format(Topics.DISPENSE_COMPLETED_TOPIC,instituteId, machineId), new MqttMessage(dispensedSelectionJson.getBytes()));
-            System.out.println("Dispense completed");
+            String consumablesJson = gson.toJson(consumables);
+            mqttClient.publish(String.format(Topics.CONSUMABLES_RESPONSE_TOPIC, instituteId, machineId), new MqttMessage(consumablesJson.getBytes()));
         } catch (MqttException e) {
             throw new RuntimeException(e);
         }
 
+    }
 
+    private void startDispenseHandler(String topic, MqttMessage mqttMessage) {
+        System.out.println("Start dispense handler");
+        try {
+            Selection s = gson.fromJson(new String(mqttMessage.getPayload()), Selection.class);
+            DrinkDaoImpl drinkDao = new DrinkDaoImpl();
+
+            publishDisplayMessage("Preparazione bevanda in corso...");
+            Thread.sleep(1000);
+            for(int i = 0; i <= 5; i++) {
+                StringBuilder progressBar = new StringBuilder("[");
+                for(int j = 0; j < 5; j++) {
+                    if(j < i) progressBar.append("■");
+                    else progressBar.append("□");
+                }
+                progressBar.append("]");
+                publishDisplayMessage(progressBar.toString());
+                Thread.sleep(1000);
+            }
+
+            drinkDao.dispenseDrink(s.getDrinkCode(), s.getSugarLevel());
+            checkConsumablesAfterDispense();
+            publishDisplayMessage("Erogazione completata!");
+
+            String dispensedSelectionJson = gson.toJson(new Selection(s.getDrinkCode(), s.getSugarLevel()));
+            mqttClient.publish(String.format(Topics.DISPENSE_COMPLETED_TOPIC, instituteId, machineId),
+                    new MqttMessage(dispensedSelectionJson.getBytes()));
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void publishDisplayMessage(String message) {
+        try {
+            DisplayMessageFormat displayMessage = new DisplayMessageFormat(false, message);
+            String messageJson = gson.toJson(displayMessage);
+            mqttClient.publish(
+                    String.format(Topics.DISPLAY_TOPIC_UPDATE, instituteId, machineId),
+                    new MqttMessage(messageJson.getBytes())
+            );
+        } catch (MqttException e) {
+            System.err.println("Error publishing display message: " + e.getMessage());
+        }
     }
 
     public void checkConsumablesAfterDispense() {
@@ -80,6 +119,7 @@ public class DispenserService {
         String jsonMessage = gson.toJson(faults);
         MqttMessage mqttMessage = new MqttMessage(jsonMessage.getBytes());
         mqttMessage.setQos(1);
+        System.out.println("Sent faults: "+jsonMessage+" on "+Topics.ASSISTANCE_CHECK_CONSUMABLES_TOPIC);
         mqttClient.publish(Topics.ASSISTANCE_CHECK_CONSUMABLES_TOPIC, mqttMessage);
     }
 

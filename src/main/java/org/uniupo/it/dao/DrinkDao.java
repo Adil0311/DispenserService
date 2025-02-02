@@ -1,5 +1,6 @@
 package org.uniupo.it.dao;
 
+import org.uniupo.it.model.Consumable;
 import org.uniupo.it.model.DrinkAvailabilityResult;
 import org.uniupo.it.model.Fault;
 
@@ -11,4 +12,6 @@ public interface DrinkDao {
     List<Fault> checkConsumablesAfterDispense();
     void insertMissingConsumables(List<Fault> faults);
     List<Fault> getUnresolvedConsumables();
+
+    List<Consumable> getConsumables();
 }

@@ -1,9 +1,6 @@
 package org.uniupo.it.dao;
 
-import org.uniupo.it.model.ConsumableType;
-import org.uniupo.it.model.DrinkAvailabilityResult;
-import org.uniupo.it.model.Fault;
-import org.uniupo.it.model.FaultType;
+import org.uniupo.it.model.*;
 
 import java.sql.*;
 import java.util.*;
@@ -226,5 +223,28 @@ public class DrinkDaoImpl implements DrinkDao {
         }
 
         return faults;
+    }
+
+    @Override
+    public List<Consumable> getConsumables() {
+        List<Consumable> consumables = new ArrayList<>();
+
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.GET_CONSUMABLES);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                consumables.add(new Consumable(
+                        ConsumableType.valueOf(rs.getString("name")),
+                        rs.getInt("quantity"),
+                        rs.getInt("maxQuantity")
+                ));
+            }
+        } catch (SQLException e) {
+            System.out.println("Failed to fetch consumables"+e.getMessage());
+            throw new RuntimeException("Failed to fetch consumables", e);
+        }
+
+        return consumables;
     }
 }

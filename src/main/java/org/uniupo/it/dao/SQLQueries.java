@@ -49,6 +49,10 @@ public final class SQLQueries {
         public static final String GET_FAULTS = """
                 SELECT description, id_fault, timestamp, fault_type, risolto
                 FROM machine."Fault" WHERE risolto IS FALSE;""";
+
+        public static final String GET_CONSUMABLES = """
+                SELECT name, quantity, "maxQuantity"
+                FROM machine.consumable;""";
     }
 
 }
