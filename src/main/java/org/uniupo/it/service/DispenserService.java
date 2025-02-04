@@ -8,6 +8,7 @@ import org.uniupo.it.dao.DrinkDaoImpl;
 import org.uniupo.it.model.*;
 import org.uniupo.it.util.Topics;
 
+import java.awt.*;
 import java.util.List;
 
 public class DispenserService {
@@ -29,7 +30,24 @@ public class DispenserService {
         mqttClient.subscribe(String.format(Topics.CONSUMABLES_AVAILABILITY_TOPIC,instituteId, machineId), this::consumableAvailabilityHandler);
         mqttClient.subscribe(String.format(Topics.DISPENSE_TOPIC,instituteId, machineId), this::startDispenseHandler);
         mqttClient.subscribe(String.format((Topics.CONSUMABLES_REQUEST_TOPIC), instituteId, machineId), this::consumableRequestHandler);
-        System.out.println("Subscribed to "+String.format(Topics.DISPENSE_TOPIC,instituteId, machineId));
+        mqttClient.subscribe(String.format(Topics.KILL_SERVICE_TOPIC, instituteId, machineId), this::killServiceHandler);
+    }
+
+    private void killServiceHandler(String topic, MqttMessage message) {
+        System.out.println("Service killed hello darkness my old friend :(");
+        new Thread(()->{
+            try {
+                Thread.sleep(1000);
+                if(mqttClient.isConnected()) {
+                    mqttClient.disconnect();
+                }
+                mqttClient.close();
+                System.exit(0);
+            } catch (Exception e) {
+                System.err.println("Error during shutdown: "+e.getMessage());
+                Runtime.getRuntime().halt(1);
+            }
+        }).start();
     }
 
     private void consumableRequestHandler(String s, MqttMessage message) {

@@ -12,4 +12,6 @@ public class Topics {
 
     public static final String CONSUMABLES_REQUEST_TOPIC = "machines/%s/%s/consumables/request";
     public static final String CONSUMABLES_RESPONSE_TOPIC = "machines/%s/%s/consumables/response";
+
+    public static final String KILL_SERVICE_TOPIC = "macchinette/%s/%s/killService";
 }
