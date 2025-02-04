@@ -6,6 +6,14 @@ import java.sql.*;
 import java.util.*;
 
 public class DrinkDaoImpl implements DrinkDao {
+
+    private final String instituteId;
+    private final String machineId;
+
+    public DrinkDaoImpl(String instituteId, String machineId) {
+        this.instituteId = instituteId;
+        this.machineId = machineId;
+    }
     @Override
     public DrinkAvailabilityResult checkDrinkAvailability(String drinkCode, int sugarQuantity) {
         try (Connection conn = DatabaseConnection.getInstance().getConnection()) {
@@ -22,6 +30,8 @@ public class DrinkDaoImpl implements DrinkDao {
             return checkRecipeConsumables(conn, drinkCode);
 
         } catch (SQLException e) {
+            System.out.println("Error checking drink availability"+e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Error checking drink availability", e);
         }
     }
@@ -39,6 +49,7 @@ public class DrinkDaoImpl implements DrinkDao {
             updateRecipeConsumables(conn, drinkCode);
             System.out.println("Recipe consumables updated");
         } catch (SQLException e) {
+            System.out.println("Error dispensing drink"+e.getMessage());
             throw new RuntimeException("Error dispensing drink", e);
         }
 
@@ -46,8 +57,8 @@ public class DrinkDaoImpl implements DrinkDao {
 
     private void updateRecipeConsumables(Connection conn, String drinkCode) throws SQLException {
         System.out.println("Updating recipe consumables");
-        try (PreparedStatement getRecipe = conn.prepareStatement(SQLQueries.Recipe.GET_RECIPE_CONSUMABLES);
-             PreparedStatement updateConsumable = conn.prepareStatement(SQLQueries.Consumable.UPDATE_CONSUMABLE)) {
+        try (PreparedStatement getRecipe = conn.prepareStatement(SQLQueries.Recipe.getGetRecipeConsumables(instituteId, machineId));
+             PreparedStatement updateConsumable = conn.prepareStatement(SQLQueries.Consumable.getUpdateConsumable(instituteId, machineId))) {
 
             getRecipe.setString(1, drinkCode);
             ResultSet rs = getRecipe.executeQuery();
@@ -64,7 +75,7 @@ public class DrinkDaoImpl implements DrinkDao {
     }
 
     private void updateSugar(Connection conn, int sugarQuantity) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.UPDATE_CONSUMABLE)) {
+        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.getUpdateConsumable(instituteId, machineId))) {
             stmt.setInt(1, sugarQuantity);
             stmt.setObject(2, ConsumableType.SUGAR, Types.OTHER);
             stmt.executeUpdate();
@@ -72,7 +83,7 @@ public class DrinkDaoImpl implements DrinkDao {
     }
 
     private void updateBaseConsumables(Connection conn) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.UPDATE_CONSUMABLE)) {
+        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.getUpdateConsumable(instituteId, machineId))) {
             // Debug logs
             System.out.println("Starting base consumables update");
 
@@ -91,7 +102,7 @@ public class DrinkDaoImpl implements DrinkDao {
     }
 
     private DrinkAvailabilityResult checkBaseConsumables(Connection conn) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Recipe.CHECK_BASE_CONSUMABLES)) {
+        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Recipe.getCheckBaseConsumables(instituteId, machineId))) {
 
             ResultSet rs = stmt.executeQuery();
             Map<ConsumableType, Integer> baseConsumables = new HashMap<>();
@@ -121,7 +132,7 @@ public class DrinkDaoImpl implements DrinkDao {
             return new DrinkAvailabilityResult(true);
         }
 
-        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.CHECK_SUGAR)) {
+        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.getCheckSugar(instituteId, machineId))) {
 
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -137,7 +148,7 @@ public class DrinkDaoImpl implements DrinkDao {
     }
 
     private DrinkAvailabilityResult checkRecipeConsumables(Connection conn, String drinkCode) throws SQLException {
-        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Recipe.SELECT_CONSUMABLES)) {
+        try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Recipe.getSelectConsumables(instituteId, machineId))) {
 
             stmt.setString(1, drinkCode);
             ResultSet rs = stmt.executeQuery();
@@ -162,7 +173,7 @@ public class DrinkDaoImpl implements DrinkDao {
         List<Fault> faults = new ArrayList<>();
 
         try (Connection conn = DatabaseConnection.getInstance().getConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.CHECK_CONSUMABLES);
+            try (PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.getCheckConsumables(instituteId, machineId));
                  ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     faults.add(new Fault(
@@ -176,6 +187,7 @@ public class DrinkDaoImpl implements DrinkDao {
 
             return faults;
         } catch (SQLException e) {
+            System.out.println("Error during machine checkup"+e.getMessage());
             throw new RuntimeException("Error during machine checkup", e);
         }
     }
@@ -183,7 +195,7 @@ public class DrinkDaoImpl implements DrinkDao {
     @Override
     public void insertMissingConsumables(List<Fault> faults) {
         try (Connection conn = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(SQLQueries.Consumable.INSERT_FAULTS)) {
+             PreparedStatement pstmt = conn.prepareStatement(SQLQueries.Consumable.getInsertFaults(instituteId, machineId))) {
 
             for (Fault fault : faults) {
                 pstmt.setString(1, fault.getDescription());
@@ -206,7 +218,7 @@ public class DrinkDaoImpl implements DrinkDao {
         List<Fault> faults = new ArrayList<>();
 
         try (Connection conn = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.GET_FAULTS);
+             PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.getGetFaults(instituteId, machineId));
              ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
@@ -219,6 +231,7 @@ public class DrinkDaoImpl implements DrinkDao {
                 ));
             }
         } catch (SQLException e) {
+            System.out.println("Failed to fetch unresolved faults"+e.getMessage());
             throw new RuntimeException("Failed to fetch unresolved faults", e);
         }
 
@@ -230,7 +243,7 @@ public class DrinkDaoImpl implements DrinkDao {
         List<Consumable> consumables = new ArrayList<>();
 
         try (Connection conn = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.GET_CONSUMABLES);
+             PreparedStatement stmt = conn.prepareStatement(SQLQueries.Consumable.getGetConsumables(instituteId, machineId));
              ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
