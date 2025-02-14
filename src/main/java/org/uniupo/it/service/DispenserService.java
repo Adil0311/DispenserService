@@ -128,6 +128,7 @@ public class DispenserService {
                 drinkDao.insertMissingConsumables(newFaults);
             }
         } catch (MqttException e) {
+
             throw new RuntimeException(e);
         }
     }
